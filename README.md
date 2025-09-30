@@ -16,23 +16,6 @@ Author
 Based on the work of Zuhkov zuhkov@gmail.com⁠, aptalca and Jason Bean, updated by cleao to 1.6.0 version of guacamole
 
 ---
-Building
-===
-
-Build from docker file:
-
-```
-git clone git@github.com⁠:cleao01/guacamole.git
-docker build -t cleao/guacamole .
-```
-
-You can also obtain it via:  
-
-```
-docker pull cleao/guacamole
-```
-
----
 Running
 ===
 
@@ -40,16 +23,9 @@ Create your guacamole config directory (which will contain both the properties f
 
 To run using internal MariaDB for user authentication, launch with the following:
 ```
-docker run -d -v /your-config-location:/config -p 8080:8080 cleao/guacamole
+docker run -d -v /your-config-location:/config -p 8080:8080 cleao/guacamole:1.0.0
 ```
-To run using external database use container Variable: EXTENSION_PRIORITY that is a 
-comma-separated list of external database server (mysql, sqlserver or postgresql) and 
-authentication providers (ldap, duo, totp, cas, openid, saml, ssl, json, header, quickconnect) 
-that should be acessed in specific order. Use internal (MariaDB) if any external database chosen
-Ex:
-```
-docker run -d -v /your-config-location:/config -p 8080:8080 -e EXTENSION_PRIORITY:mysql cleao/guacamole
-```
+
 ---
 Initializing the MySQL database
 ===
@@ -63,6 +39,13 @@ Run the script on the newly-created database:
 
 docker exec -i MySQLDockerName sh -c 'mariadb -uroot -p"RootPassword" -e"CREATE DATABASE databasename"'
 docker run --rm guacamole/guacamole /opt/guacamole/bin/initdb.sh --mysql | docker exec -i MySQLDockerName sh -c 'mariadb -uroot -p"RootPassword" databasename'
+
+Use container Variable: EXTENSION_PRIORITY that is a comma-separated list of external database server (mysql, sqlserver or postgresql) 
+and authentication providers (ldap, duo, totp, cas, openid, saml, ssl, json, header, quickconnect) that should be acessed in specific order. Use internal (MariaDB) if any external database chosen
+Ex:
+```
+docker run -d -v /your-config-location:/config -p 8080:8080 -e EXTENSION_PRIORITY:mysql cleao/guacamole:1.0.0
+```
 
 Once the Guacamole image is running, Guacamole will be accessible at: http://your-host-ip:8080 and login with user and password `guacadmin`
 
