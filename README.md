@@ -19,9 +19,9 @@ Based on the work of Zuhkov zuhkov@gmail.com⁠, aptalca and Jason Bean, updated
 Running
 ===
 
-Create your guacamole config directory (which will contain both the properties file and the database).
+If you don't specify any database type in the environment variable EXTENSION_PRIORITY, internal MariaDB will be used
 
-To run using internal MariaDB for user authentication, launch with the following:
+Launch with the following:
 ```
 docker run -d -v /your-config-location:/config -p 8080:8080 cleao/guacamole:1.0.0
 ```
@@ -40,9 +40,9 @@ Run the script on the newly-created database:
 docker exec -i MySQLDockerName sh -c 'mariadb -uroot -p"RootPassword" -e"CREATE DATABASE databasename"'
 docker run --rm guacamole/guacamole /opt/guacamole/bin/initdb.sh --mysql | docker exec -i MySQLDockerName sh -c 'mariadb -uroot -p"RootPassword" databasename'
 
-Use container Variable: EXTENSION_PRIORITY that is a comma-separated list of external database server (mysql, sqlserver or postgresql) 
-and authentication providers (ldap, duo, totp, cas, openid, saml, ssl, json, header, quickconnect) that should be acessed in specific order. Use internal (MariaDB) if any external database chosen
-Ex:
+Use container Variable: EXTENSION_PRIORITY to specify the external database server (mysql, sqlserver or postgresql) 
+Ex.:
+
 ```
 docker run -d -v /your-config-location:/config -p 8080:8080 -e EXTENSION_PRIORITY:mysql cleao/guacamole:1.0.0
 ```
