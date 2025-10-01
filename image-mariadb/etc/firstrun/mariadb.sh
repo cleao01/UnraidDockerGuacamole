@@ -12,7 +12,7 @@ chown -R abc:abc /var/log/mysql /var/lib/mysql /var/run/mysqld
 chmod -R 777 /var/log/mysql /var/lib/mysql /var/run/mysqld
 
 start_mysql() {
-  echo "Starting MariaDB."
+  echo "Starting MariaDB"
   /usr/bin/mysqld_safe > /dev/null 2>&1 &
   RET=1
   while [[ RET -ne 0 ]]; do
@@ -23,24 +23,24 @@ start_mysql() {
 }
 
 stop_mysqld() {
-  echo "Stopping MariaDB."
+  echo "Stopping MariaDB"
   mysqladmin -u root shutdown
   sleep 3
 }
 
 upgrade_database() {
+  echo "Upgrading database pre-$UPG_VER"
   local UPG_VER="$1"
   start_mysql
-  echo "Upgrading database pre-$UPG_VER."
   echo "$GUAC_VER" > "$MYSQL_DATABASE"/guacamole/version
   mysql -uroot guacamole < ${MYSQL_SCHEMA}/upgrade/upgrade-pre-${UPG_VER}.sql
   stop_mysqld
   echo "Upgrade complete."
 }
 
-# If databases do not exist, create
+# Database exist?  Need upgrade?
 if [ -f "$MYSQL_DATABASE"/guacamole/guacamole_user.ibd ]; then
-  echo "Database exists."
+  echo "Database exists"
   if [ -f "$MYSQL_DATABASE"/guacamole/version ]; then
     OLD_GUAC_VER=$(cat $MYSQL_DATABASE/guacamole/version)
     IFS="."
@@ -64,14 +64,14 @@ if [ -f "$MYSQL_DATABASE"/guacamole/guacamole_user.ibd ]; then
         ;;		
       esac
     elif (( OLD_SPLIT[2] > NEW_SPLIT[2] )) || (( OLD_SPLIT[1] > NEW_SPLIT[1] )) || (( OLD_SPLIT[0] > NEW_SPLIT[0] )); then
-      echo "Database newer revision, no change needed."
+      echo "Database newer revision, no change needed"
       # revert back to match database version rather than actual version since there have been no changes.
       echo "$GUAC_VER" > "$MYSQL_DATABASE"/guacamole/version
     else
-      echo "Database upgrade not needed."
+      echo "Database upgrade not needed"
     fi
   else
-    echo "Database being upgraded."
+    echo "Database being upgraded to version $GUAC_VER:"
     upgrade_database "0.9.13"
     upgrade_database "0.9.14"
     upgrade_database "1.0.0"
@@ -81,7 +81,6 @@ else
   if [ -f /config/guacamole/guacamole.properties ]; then
     echo "Initializing database"
     /usr/bin/mysql_install_db --datadir="$MYSQL_DATABASE" > /dev/null
-    echo "Database installation complete."
     start_mysql
     echo "Creating Guacamole database and user"
     mysql -uroot -e "CREATE DATABASE guacamole"
@@ -98,10 +97,7 @@ else
     echo "Setting database file permissions"
     chown -R abc:abc /config/databases
     chmod -R 755 /config/databases
-    echo "Removing mysql-server logrotate directive"
-    rm /etc/logrotate.d/mysql-server
-    sleep 3
-    echo "Database initialization complete."
+    echo "Database installation complete."	
   else
     echo "Error! Unable to create database. guacamole.properties file does not exist."
   fi

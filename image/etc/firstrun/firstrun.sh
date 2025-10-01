@@ -64,6 +64,7 @@ fi
 
 # Preparing directory for recording storage - https://guacamole.apache.org/doc/gug/recording-playback.html#preparing-a-directory-for-recording-storage
 if [ ! -n "${RECORDINGSEARCHPATH}" ]; then
+  # Default path if environment variable is empty:
   RECORDINGSEARCHPATH="/config/recordings"
 fi
 echo "Session recordings will be stored in ""$RECORDINGSEARCHPATH"
@@ -76,7 +77,7 @@ sed -i '/recording-search-path:/c\recording-search-path: '$RECORDINGSEARCHPATH''
 
 # Save guacamole.properties required configuration from environment variables
 sed -i '/skip-if-unavailable:/c\skip-if-unavailable: '"$EXTENSIONPRIORITY"'' /config/guacamole/guacamole.properties
-#  Don't refer any external database server, then use internal database
+#  Don't specify any external database server, then use internal database
 if ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] || [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]]); then
   # Check if database server type as changed from external or is 1st. run
   if [ ! -f /config/databases/guacamole/guacamole_user.ibd ]; then
@@ -592,11 +593,11 @@ else
 fi
 
 if [ "$CHANGES" = true ]; then
-  echo "Updating user permissions."
+  echo "Updating user permissions"
   chown abc:abc -R /config/guacamole
   chmod 755 -R /config/guacamole
 else
-  echo "No permissions changes needed."
+  echo "No permissions changes needed"
 fi
 
 if ( ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] || [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]] )) && [ -f /etc/firstrun/mariadb.sh ]; then
