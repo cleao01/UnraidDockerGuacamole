@@ -51,8 +51,6 @@ SSLAUTHPRIMARYURI=${SSL_AUTH_PRIMARY_URI}
 
 JSONSECRETKEY=${JSON_SECRET_KEY}
 
-RECORDINGSEARCHPATH=${RECORDING_SEARCH_PATH}
-
 # 1st. run
 if [ ! -f /config/guacamole/guacamole.properties ]; then
   echo "1st. run"
@@ -63,17 +61,11 @@ if [ ! -f /config/guacamole/guacamole.properties ]; then
 fi
 
 # Preparing directory for recording storage - https://guacamole.apache.org/doc/gug/recording-playback.html#preparing-a-directory-for-recording-storage
-if [ ! -n "${RECORDINGSEARCHPATH}" ]; then
-  # Default path if environment variable is empty:
-  RECORDINGSEARCHPATH="/config/recordings"
-fi
-echo "Session recordings will be stored in ""$RECORDINGSEARCHPATH"
-if [ ! -d "$RECORDINGSEARCHPATH" ]; then
-  mkdir -p "$RECORDINGSEARCHPATH"  
-  chown abc:abc "$RECORDINGSEARCHPATH"
-  chmod 2750 "$RECORDINGSEARCHPATH"
-fi
-sed -i '/recording-search-path:/c\recording-search-path: '$RECORDINGSEARCHPATH'' /config/guacamole/guacamole.properties
+echo "Session recordings will be stored in /config/recordings to be accessible outside docker"
+mkdir -p /config/recordings  
+chown abc:abc /config/recordings
+chmod 2750 /config/recordings
+sed -i '/recording-search-path:/c\recording-search-path: /config/recordings' /config/guacamole/guacamole.properties
 
 # Save guacamole.properties required configuration from environment variables
 sed -i '/skip-if-unavailable:/c\skip-if-unavailable: '"$EXTENSIONPRIORITY"'' /config/guacamole/guacamole.properties
