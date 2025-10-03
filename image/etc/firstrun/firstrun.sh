@@ -79,7 +79,7 @@ if ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlse
   else
     PW=$(cat /config/guacamole/guacamole.properties | grep -m 1 "mysql-password:\s" | sed 's/mysql-password:\s//')  
   fi
-  if [ ! -z "$EXTENSIONPRIORITY" ];
+  if [ ! -z "$EXTENSIONPRIORITY" ]; then
     sed -i '/extension-priority:/c\extension-priority: '"$EXTENSIONPRIORITY"',mysql' /config/guacamole/guacamole.properties
   else
     sed -i '/extension-priority:/c\#extension-priority:' /config/guacamole/guacamole.properties    
