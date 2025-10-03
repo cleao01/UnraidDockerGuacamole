@@ -68,7 +68,6 @@ chmod 2750 /config/recordings
 sed -i '/recording-search-path:/c\recording-search-path: /config/recordings' /config/guacamole/guacamole.properties
 
 # Save guacamole.properties required configuration from environment variables
-sed -i '/skip-if-unavailable:/c\skip-if-unavailable: '"$EXTENSIONPRIORITY"'' /config/guacamole/guacamole.properties
 #  Don't specify any external database server, then use internal database
 if ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] || [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]]); then
   # Check if database server type as changed from external or is 1st. run
@@ -80,18 +79,17 @@ if ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlse
   else
     PW=$(cat /config/guacamole/guacamole.properties | grep -m 1 "mysql-password:\s" | sed 's/mysql-password:\s//')  
   fi
-  sed -i '/extension-priority:/c\extension-priority: mysql,'"$EXTENSIONPRIORITY"'' /config/guacamole/guacamole.properties
+  if [ ! -z "$EXTENSIONPRIORITY" ];
+    sed -i '/extension-priority:/c\extension-priority: '"$EXTENSIONPRIORITY"',mysql' /config/guacamole/guacamole.properties
+  else
+    sed -i '/extension-priority:/c\#extension-priority:' /config/guacamole/guacamole.properties    
+  fi
   sed -i '/mysql-hostname:/c\mysql-hostname: 127.0.0.1' /config/guacamole/guacamole.properties
   sed -i '/mysql-port:/c\mysql-port: 3306' /config/guacamole/guacamole.properties
   sed -i '/mysql-database/c\mysql-database: guacamole' /config/guacamole/guacamole.properties
   sed -i '/mysql-username:/c\mysql-username: guacamole' /config/guacamole/guacamole.properties
   sed -i '/mysql-password:/c\mysql-password: '$PW'' /config/guacamole/guacamole.properties
 else  #  External database
-  # Check if database server type as changed from internal (MariaDB/Mysql)
-  if [ -f /config/databases/guacamole/guacamole_user.ibd ]; then
-    echo "Delete existing database: last run was internal MariaDB/Mysql related"
-    rm -r /config/databases
-  fi
   sed -i '/extension-priority:/c\extension-priority: '"$EXTENSIONPRIORITY"'' /config/guacamole/guacamole.properties  
   if [[ $EXTENSIONPRIORITY =~ "mysql" ]]; then
     # External MySQL/MariaDB database server
@@ -101,11 +99,11 @@ else  #  External database
     sed -i '/mysql-username:/c\mysql-username: '$DATABASEUSERNAME'' /config/guacamole/guacamole.properties
     sed -i '/mysql-password:/c\mysql-password: '$DATABASEPASSWORD'' /config/guacamole/guacamole.properties    
   else
-    sed -i '/mysql-hostname:/c\#mysql-hostname:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-    sed -i '/mysql-port:/c\#mysql-port:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-    sed -i '/mysql-database:/c\#mysql-database:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-    sed -i '/mysql-username:/c\#mysql-username:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-    sed -i '/mysql-password:/c\#mysql-password:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
+    sed -i '/mysql-hostname:/c\#mysql-hostname:' /config/guacamole/guacamole.properties
+    sed -i '/mysql-port:/c\#mysql-port:' /config/guacamole/guacamole.properties
+    sed -i '/mysql-database:/c\#mysql-database:' /config/guacamole/guacamole.properties
+    sed -i '/mysql-username:/c\#mysql-username:' /config/guacamole/guacamole.properties
+    sed -i '/mysql-password:/c\#mysql-password:' /config/guacamole/guacamole.properties
   fi	
   if [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]]; then
     # External MSSQLServer database server
@@ -115,11 +113,11 @@ else  #  External database
     sed -i '/sqlserver-username:/c\sqlserver-username: '$DATABASEUSERNAME'' /config/guacamole/guacamole.properties
     sed -i '/sqlserver-password:/c\sqlserver-password: '$DATABASEPASSWORD'' /config/guacamole/guacamole.properties  
   else
-    sed -i '/sqlserver-hostname:/c\#sqlserver-hostname:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-    sed -i '/sqlserver-port:/c\#sqlserver-port:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-    sed -i '/sqlserver-database:/c\#sqlserver-database:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-    sed -i '/sqlserver-username:/c\#sqlserver-username:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-    sed -i '/sqlserver-password:/c\#sqlserver-password:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
+    sed -i '/sqlserver-hostname:/c\#sqlserver-hostname:' /config/guacamole/guacamole.properties
+    sed -i '/sqlserver-port:/c\#sqlserver-port:' /config/guacamole/guacamole.properties
+    sed -i '/sqlserver-database:/c\#sqlserver-database:' /config/guacamole/guacamole.properties
+    sed -i '/sqlserver-username:/c\#sqlserver-username:' /config/guacamole/guacamole.properties
+    sed -i '/sqlserver-password:/c\#sqlserver-password:' /config/guacamole/guacamole.properties
   fi
   if [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]]; then
     # External Postgresql database server
@@ -129,11 +127,11 @@ else  #  External database
     sed -i '/postgresql-username:/c\postgresql-username: '$DATABASEUSERNAME'' /config/guacamole/guacamole.properties
     sed -i '/postgresql-password:/c\postgresql-password: '$DATABASEPASSWORD'' /config/guacamole/guacamole.properties
   else
-    sed -i '/postgresql-hostname:/c\#postgresql-hostname:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-    sed -i '/postgresql-port:/c\#postgresql-port:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-    sed -i '/postgresql-database:/c\#postgresql-database:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-    sed -i '/postgresql-username:/c\#postgresql-username:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-    sed -i '/postgresql-password:/c\#postgresql-password:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
+    sed -i '/postgresql-hostname:/c\#postgresql-hostname:' /config/guacamole/guacamole.properties
+    sed -i '/postgresql-port:/c\#postgresql-port:' /config/guacamole/guacamole.properties
+    sed -i '/postgresql-database:/c\#postgresql-database:' /config/guacamole/guacamole.properties
+    sed -i '/postgresql-username:/c\#postgresql-username:' /config/guacamole/guacamole.properties
+    sed -i '/postgresql-password:/c\#postgresql-password:' /config/guacamole/guacamole.properties
   fi
 fi
 if [[ "$EXTENSIONPRIORITY" =~ "ldap" ]]; then
@@ -142,9 +140,9 @@ if [[ "$EXTENSIONPRIORITY" =~ "ldap" ]]; then
   sed -i '/ldap-port:/c\ldap-port: '$LDAPPORT'' /config/guacamole/guacamole.properties
   sed -i '/ldap-user-base-dn:/c\ldap-user-base-dn: '$LDAPUSERBASEDN'' /config/guacamole/guacamole.properties
 else
-  sed -i '/ldap-hostname:/c\#ldap-hostname:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-  sed -i '/ldap-port:/c\#ldap-port:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-  sed -i '/ldap-user-base-dn:/c\#ldap-user-base-dn:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
+  sed -i '/ldap-hostname:/c\#ldap-hostname:' /config/guacamole/guacamole.properties
+  sed -i '/ldap-port:/c\#ldap-port:' /config/guacamole/guacamole.properties
+  sed -i '/ldap-user-base-dn:/c\#ldap-user-base-dn:' /config/guacamole/guacamole.properties
 fi
 if [[ "$EXTENSIONPRIORITY" =~ "duo" ]]; then
   # External DUO authentication
@@ -153,18 +151,18 @@ if [[ "$EXTENSIONPRIORITY" =~ "duo" ]]; then
   sed -i '/duo-client-secret:/c\duo-client-secret: '$DUOCLIENTSECRET'' /config/guacamole/guacamole.properties
   sed -i '/duo-redirect-uri:/c\duo-redirect-uri: '$DUOREDIRECTURI'' /config/guacamole/guacamole.properties
 else
-  sed -i '/duo-api-hostname:/c\#duo-api-hostname:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-  sed -i '/duo-client-id:/c\#duo-client-id:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-  sed -i '/duo-client-secret:/c\#duo-client-secret:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-  sed -i '/duo-redirect-uri:/c\#duo-redirect-uri:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
+  sed -i '/duo-api-hostname:/c\#duo-api-hostname:' /config/guacamole/guacamole.properties
+  sed -i '/duo-client-id:/c\#duo-client-id:' /config/guacamole/guacamole.properties
+  sed -i '/duo-client-secret:/c\#duo-client-secret:' /config/guacamole/guacamole.properties
+  sed -i '/duo-redirect-uri:/c\#duo-redirect-uri:' /config/guacamole/guacamole.properties
 fi
 if [[ "$EXTENSIONPRIORITY" =~ "cas" ]]; then
   # External CAS authentication
   sed -i '/cas-authorization-endpoint:/c\cas-authorization-endpoint: '$CASAUTHORIZATIONENDPOINT'' /config/guacamole/guacamole.properties
   sed -i '/cas-redirect-uri:/c\cas-redirect-uri: '$CASREDIRECTURI'' /config/guacamole/guacamole.properties
 else
-  sed -i '/cas-authorization-endpoint:/c\#cas-authorization-endpoint:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-  sed -i '/cas-redirect-uri:/c\#cas-redirect-uri:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
+  sed -i '/cas-authorization-endpoint:/c\#cas-authorization-endpoint:' /config/guacamole/guacamole.properties
+  sed -i '/cas-redirect-uri:/c\#cas-redirect-uri:' /config/guacamole/guacamole.properties
 fi
 if [[ "$EXTENSIONPRIORITY" =~ "openid" ]]; then
   # External OPENID authentication
@@ -174,11 +172,11 @@ if [[ "$EXTENSIONPRIORITY" =~ "openid" ]]; then
   sed -i '/openid-client-id:/c\openid-client-id: '$OPENIDCLIENTID'' /config/guacamole/guacamole.properties
   sed -i '/openid-redirect-uri:/c\openid-redirect-uri: '$OPENIDREDIRECTURI'' /config/guacamole/guacamole.properties
 else
-  sed -i '/openid-authorization-endpoint:/c\#openid-authorization-endpoint:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-  sed -i '/openid-jwks-endpoint:/c\#openid-jwks-endpoint:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-  sed -i '/openid-issuer:/c\#openid-issuer:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-  sed -i '/openid-client-id:/c\#openid-client-id:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-  sed -i '/openid-redirect-uri:/c\#openid-redirect-uri:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
+  sed -i '/openid-authorization-endpoint:/c\#openid-authorization-endpoint:' /config/guacamole/guacamole.properties
+  sed -i '/openid-jwks-endpoint:/c\#openid-jwks-endpoint:' /config/guacamole/guacamole.properties
+  sed -i '/openid-issuer:/c\#openid-issuer:' /config/guacamole/guacamole.properties
+  sed -i '/openid-client-id:/c\#openid-client-id:' /config/guacamole/guacamole.properties
+  sed -i '/openid-redirect-uri:/c\#openid-redirect-uri:' /config/guacamole/guacamole.properties
 fi
 if [[ "$EXTENSIONPRIORITY" =~ "saml" ]]; then
   # External SAML authentication
@@ -192,8 +190,8 @@ if [[ "$EXTENSIONPRIORITY" =~ "ssl" ]]; then
   sed -i '/ssl-auth-uri:/c\ssl-auth-uri: '$SSLAUTHURI'' /config/guacamole/guacamole.properties
   sed -i '/ssl-auth-primary-uri:/c\ssl-auth-primary-uri: '$SSLAUTHPRIMARYURI'' /config/guacamole/guacamole.properties
 else
-  sed -i '/ssl-auth-uri:/c\#ssl-auth-uri:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
-  sed -i '/ssl-auth-primary-uri:/c\#ssl-auth-primary-uri:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
+  sed -i '/ssl-auth-uri:/c\#ssl-auth-uri:' /config/guacamole/guacamole.properties
+  sed -i '/ssl-auth-primary-uri:/c\#ssl-auth-primary-uri:' /config/guacamole/guacamole.properties
 fi
 if [[ "$EXTENSIONPRIORITY" =~ "json" ]]; then
   # External JSON authentication
@@ -201,7 +199,7 @@ if [[ "$EXTENSIONPRIORITY" =~ "json" ]]; then
   echo "documentation: Apache Guacamole manual: https://guacamole.apache.org/doc/gug/json-auth.html"  
   sed -i '/json-secret-key:/c\json-secret-key: '$JSONSECRETKEY'' /config/guacamole/guacamole.properties
 else
-  sed -i '/json-secret-key:/c\#json-secret-key:  DONT CHANGE!  automatically set by environment variable' /config/guacamole/guacamole.properties
+  sed -i '/json-secret-key:/c\#json-secret-key:' /config/guacamole/guacamole.properties
 fi
 
 # Install/uninstall needed extensions and connectors
