@@ -40,7 +40,7 @@ upgrade_database() {
 
 # Database exist?  Need upgrade?
 if [ -f "$MYSQL_DATABASE"/guacamole/guacamole_user.ibd ]; then
-  echo "Database exists"
+  # Database exists
   if [ -f "$MYSQL_DATABASE"/guacamole/version ]; then
     OLD_GUAC_VER=$(cat $MYSQL_DATABASE/guacamole/version)
     IFS="."

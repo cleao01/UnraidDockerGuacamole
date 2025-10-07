@@ -81,7 +81,6 @@ RUN apk add --no-cache ${RUNTIME_DEPENDENCIES}                                  
 
 ### Add MariaDB for possible internal use
 RUN apk add mariadb mariadb-client
-ADD image-mariadb /
 RUN chmod +x /etc/firstrun/mariadb.sh
 
 EXPOSE 8080

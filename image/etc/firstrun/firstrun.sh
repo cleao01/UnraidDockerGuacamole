@@ -56,7 +56,8 @@ if [ ! -f /config/guacamole/guacamole.properties ]; then
   echo "1st. run"
   mkdir -p "$GUAC_EXT" /config/guacamole/lib "$TOMCAT_LOG"
   cp /etc/firstrun/templates/* "$GUACAMOLE_HOME"
-  chown -R abc:abc /config/guacamole "$TOMCAT_LOG"
+  cp /etc/firstrun/extensions/* "$GUAC_EXT"
+  chown -R abc:abc /config/guacamole "$TOMCAT_LOG" "$GUAC_EXT" 
   CHANGES=true
 fi
 
@@ -76,8 +77,17 @@ if ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlse
     mkdir -p /config/databases
     chown abc:abc /config/databases
     PW=$(pwgen -1snc 32)
+	#  Keep internal password because it migth be lost with future changes in file guacamole.properties
+	echo "mysql-password: $PW" > /config/databases/guacamole.pass
   else
-    PW=$(cat /config/guacamole/guacamole.properties | grep -m 1 "mysql-password:\s" | sed 's/mysql-password:\s//')  
+    echo "Re-use the internal MariaDB database that already exists!"
+	if [ -f /config/databases/guacamole.pass ]; then
+      #  Internal password was kept	
+      PW=$(cat /config/databases/guacamole.pass | grep -m 1 "mysql-password:\s" | sed 's/mysql-password:\s//')
+	else
+      #  Internal password not kept, try the one in guacamole.properties file
+      PW=$(cat /config/guacamole/guacamole.properties | grep -m 1 "mysql-password:\s" | sed 's/mysql-password:\s//')  
+	fi
   fi
   if [ ! -z "$EXTENSIONPRIORITY" ]; then
     sed -i '/extension-priority:/c\extension-priority: '"$EXTENSIONPRIORITY"',mysql' /config/guacamole/guacamole.properties
