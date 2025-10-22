@@ -15,7 +15,7 @@ All other options are self explained or you can use the manual located here: htt
 Docker run example:
   docker run -d --name='Guacamole' --net='bridge' -e 'EXTENSION_PRIORITY'='' -e 'PUID'='99' -e 'PGID'='100' -p '8080:8080/tcp' -v 'watheverpathyouwant':'/config':'rw' 'cleao/guacamole'
 
-Session recordings when properly configured in GUI will be stored in /config/recordings to be accessible outside docker.
+Session recordings when properly configured in GUI will be stored in the configurable Environment Path to be accessible outside docker.
 Once the Guacamole image is running, will be accessible at: http://your-host-ip:8080 and login with user and password: guacadmin
 
 Apache Guacamole copyright The Apache Software Foundation, Licenced under the Apache License, Version 9
@@ -45,9 +45,8 @@ Environment variables:
   SSL_AUTH_URI: SSL auth uri,
   SSL_AUTH_PRIMARY_URI: SSL auth primary uri,
   JSON_SECRET_KEY: JSON secret key,
-  PUID'='99',
-  PGID'='100'
  
 Container Path: /config: AppData Config Path
+Container Path: /var/lib/guacamole/recordings
  
 Internal port: 8080

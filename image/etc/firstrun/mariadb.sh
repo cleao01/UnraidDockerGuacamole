@@ -8,7 +8,7 @@ MYSQL_DATABASE=/config/databases
 
 sed -i '/\[mysqld\]/a user= '"$PUID"'' "$MYSQL_CONFIG"
 mkdir -p /var/run/mysqld /var/log/mysql
-chown -R abc:abc /var/log/mysql /var/lib/mysql /var/run/mysqld
+chown -R guacd:guacd /var/log/mysql /var/lib/mysql /var/run/mysqld
 chmod -R 777 /var/log/mysql /var/lib/mysql /var/run/mysqld
 
 start_mysql() {
@@ -95,7 +95,7 @@ else
     echo "$GUAC_VER" > "$MYSQL_DATABASE"/guacamole/version
     stop_mysqld
     echo "Setting database file permissions"
-    chown -R abc:abc /config/databases
+    chown -R guacd:guacd /config/databases
     chmod -R 755 /config/databases
     echo "Database installation complete."	
   else

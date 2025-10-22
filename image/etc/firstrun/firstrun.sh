@@ -2,23 +2,18 @@
 
 EXT_STORE="/opt/guacamole"
 GUAC_EXT="/config/guacamole/extensions"
+GUAC_LIB="/config/guacamole/lib"
 TOMCAT_LOG="/config/log/tomcat"
 CHANGES=false
-JCONNECTOR="9.4.0"     #  https://dev.mysql.com/downloads/connector/j/
-PCONNECTOR="42.7.8"    #  https://jdbc.postgresql.org/download
-SCONNECTOR="13.2.0"    #  https://learn.microsoft.com/en-us/sql/connect/jdbc/download-microsoft-jdbc-driver-for-sql-server?view=sql-server-ver17
+MYSQLCONNECTOR="9.5.0"     #  https://dev.mysql.com/downloads/connector/j/
+POSTGRCONNECTOR="42.7.8"    #  https://jdbc.postgresql.org/download
+MSSQLCONNECTOR="13.2.1"    #  https://learn.microsoft.com/en-us/sql/connect/jdbc/download-microsoft-jdbc-driver-for-sql-server?view=sql-server-ver17
 
-# Create user
-PUID=${PUID:-99}
-PGID=${PGID:-100}
-groupmod -o -g "$PGID" abc
-usermod -o -u "$PUID" abc
-echo "----------------------"
-echo "User UID: $(id -u abc)"
-echo "User GID: $(id -g abc)"
-echo "----------------------"
-chown -R abc:abc /config
-chown -R abc:abc /opt/tomcat /var/run/tomcat /var/lib/tomcat
+# User to run MariaDB
+groupmod -o -g "$PGID" guacd
+usermod -o -u "$PUID" guacd
+
+chown -R guacd:guacd /config /opt/tomcat /var/run/tomcat /var/lib/tomcat
 
 # Retrieve environment variables
 EXTENSIONPRIORITY="${EXTENSION_PRIORITY,,}"   # Convert to lower case
@@ -51,41 +46,39 @@ SSLAUTHPRIMARYURI=${SSL_AUTH_PRIMARY_URI}
 
 JSONSECRETKEY=${JSON_SECRET_KEY}
 
-# 1st. run
+# 1st. run or new mount point in host
 if [ ! -f /config/guacamole/guacamole.properties ]; then
-  echo "1st. run"
-  mkdir -p "$GUAC_EXT" /config/guacamole/lib "$TOMCAT_LOG"
+  echo "1st. run or new mount point in host"
+  mkdir -p "$GUAC_EXT" "$GUAC_LIB" "$TOMCAT_LOG"
   cp /etc/firstrun/templates/* "$GUACAMOLE_HOME"
-  cp /etc/firstrun/extensions/* "$GUAC_EXT"
-  chown -R abc:abc /config/guacamole "$TOMCAT_LOG" "$GUAC_EXT" 
+  chown -R guacd:guacd /config/guacamole "$TOMCAT_LOG" "$GUAC_LIB"
   CHANGES=true
 fi
 
 # Preparing directory for recording storage - https://guacamole.apache.org/doc/gug/recording-playback.html#preparing-a-directory-for-recording-storage
-echo "Session recordings will be stored in /config/recordings to be accessible outside docker"
-mkdir -p /config/recordings  
-chown abc:abc /config/recordings
-chmod 2750 /config/recordings
-sed -i '/recording-search-path:/c\recording-search-path: /config/recordings' /config/guacamole/guacamole.properties
+echo "Use mount point (path:/var/lib/guacamole/recordings) to access session recordings outside docker"
+mkdir -p /var/lib/guacamole/recordings  
+chown guacd:guacd /var/lib/guacamole/recordings
+chmod 2750 /var/lib/guacamole/recordings
 
 # Save guacamole.properties required configuration from environment variables
-#  Don't specify any external database server, then use internal database
+# Use MariaDB internal if any external database server is specifyed
 if ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] || [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]]); then
   # Check if database server type as changed from external or is 1st. run
   if [ ! -f /config/databases/guacamole/guacamole_user.ibd ]; then
     echo "Creating database folders"
     mkdir -p /config/databases
-    chown abc:abc /config/databases
+    chown guacd:guacd /config/databases
     PW=$(pwgen -1snc 32)
-	#  Keep internal password because it migth be lost with future changes in file guacamole.properties
+	#  Keep last internal password just for backup because it migth be lost with future changes in file guacamole.properties
 	echo "mysql-password: $PW" > /config/databases/guacamole.pass
   else
     echo "Re-use the internal MariaDB database that already exists!"
 	if [ -f /config/databases/guacamole.pass ]; then
-      #  Internal password was kept	
+      #  Last internal password used was kept, recover it
       PW=$(cat /config/databases/guacamole.pass | grep -m 1 "mysql-password:\s" | sed 's/mysql-password:\s//')
 	else
-      #  Internal password not kept, try the one in guacamole.properties file
+      #  Last internal password not kept, try the one in guacamole.properties file
       PW=$(cat /config/guacamole/guacamole.properties | grep -m 1 "mysql-password:\s" | sed 's/mysql-password:\s//')  
 	fi
   fi
@@ -223,34 +216,28 @@ if ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]]) || ( ! ([[ "$EXTENSIONPRIORITY" =~ "m
       echo "Using existing MySQL extension and connector"
     else
       echo "Upgrading MySQL extension and connector"
-      rm "$GUAC_EXT"/*jdbc-mysql*.jar
-      cd /config/guacamole/lib
-      rm mysql-connector*.jar
+	  rm "$GUAC_EXT"/*jdbc-mysql*.jar "$GUAC_LIB"/mysql-connector*.jar
       cp "$EXT_STORE"/extensions/guacamole-auth-jdbc/mysql/*jdbc-mysql*.jar "$GUAC_EXT"
-	  wget -q https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-j-${JCONNECTOR}.tar.gz
-	  tar -xzf mysql-connector-j-${JCONNECTOR}.tar.gz
-	  mv mysql-connector-j-${JCONNECTOR}/mysql-connector*.jar /config/guacamole/lib
-	  rm -r mysql-connector-j-${JCONNECTOR}
-	  rm mysql-connector-j-${JCONNECTOR}.tar.gz
+	  wget -q https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-j-${MYSQLCONNECTOR}.tar.gz
+	  tar -xzf mysql-connector-j-${MYSQLCONNECTOR}.tar.gz
+	  mv mysql-connector-j-${MYSQLCONNECTOR}/mysql-connector*.jar ${GUAC_LIB}
+      rm -rf mysql-connector-j-${MYSQLCONNECTOR} mysql-connector-j-${MYSQLCONNECTOR}.tar.gz
       CHANGES=true
     fi
   else
     echo "Copying MySQL extension and connector"
     cp "$EXT_STORE"/extensions/guacamole-auth-jdbc/mysql/*jdbc-mysql*.jar "$GUAC_EXT"
-    wget -q https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-j-${JCONNECTOR}.tar.gz
-    tar -xzf mysql-connector-j-${JCONNECTOR}.tar.gz
-    mv mysql-connector-j-${JCONNECTOR}/mysql-connector*.jar /config/guacamole/lib
-    rm -r mysql-connector-j-${JCONNECTOR}
-    rm mysql-connector-j-${JCONNECTOR}.tar.gz
+    wget -q https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-j-${MYSQLCONNECTOR}.tar.gz
+    tar -xzf mysql-connector-j-${MYSQLCONNECTOR}.tar.gz
+    mv mysql-connector-j-${MYSQLCONNECTOR}/mysql-connector*.jar ${GUAC_LIB}
+    rm -rf mysql-connector-j-${MYSQLCONNECTOR} mysql-connector-j-${MYSQLCONNECTOR}.tar.gz
     CHANGES=true
   fi
 else
   # Delete MYSQL related files
   if [ -f "$GUAC_EXT"/*jdbc-mysql*.jar ]; then
     echo "Removing MySQL extension and connector"
-    rm "$GUAC_EXT"/*jdbc-mysql*.jar
-    cd /config/guacamole/lib
-    rm mysql-connector*.jar
+    rm "$GUAC_EXT"/*jdbc-mysql*.jar "$GUAC_LIB"/mysql-connector*.jar
   fi
 fi
 
@@ -265,28 +252,24 @@ if [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]] ; then
       CHANGES=true
     else
       echo "Upgrading postgresql extension and connector"
-      rm "$GUAC_EXT"/guacamole-auth-jdbc-postgresql.jar
-      cd /config/guacamole/lib
-      rm postgresql-*.jar
+	  rm "$GUAC_EXT"/guacamole-auth-jdbc-postgresql.jar "$GUAC_LIB"/postgresql-*.jar
       cp "$EXT_STORE"/extensions/guacamole-auth-jdbc/postgresql/guacamole-auth-jdbc-postgresql.jar "$GUAC_EXT"
-	  wget -q https://jdbc.postgresql.org/download/postgresql-${PCONNECTOR}.jar
-      mv postgresql-${PCONNECTOR}.jar /config/guacamole/lib
+	  wget -q https://jdbc.postgresql.org/download/postgresql-${POSTGRCONNECTOR}.jar
+      mv postgresql-${POSTGRCONNECTOR}.jar ${GUAC_LIB}
       CHANGES=true
     fi
   else
     echo "Copying postgresql extension and connector"
     cp "$EXT_STORE"/extensions/guacamole-auth-jdbc/postgresql/guacamole-auth-jdbc-postgresql.jar "$GUAC_EXT"
-    wget -q https://jdbc.postgresql.org/download/postgresql-${PCONNECTOR}.jar
-    mv postgresql-${PCONNECTOR}.jar /config/guacamole/lib
+    wget -q https://jdbc.postgresql.org/download/postgresql-${POSTGRCONNECTOR}.jar
+    mv postgresql-${POSTGRCONNECTOR}.jar ${GUAC_LIB}
     CHANGES=true
   fi
 else
   # Delete Postgresql related files
   if [ -f "$GUAC_EXT"/guacamole-auth-jdbc-postgresql.jar ]; then
     echo "Removing postgresql extension andconnector"
-    rm "$GUAC_EXT"/guacamole-auth-jdbc-postgresql.jar
-    cd /config/guacamole/lib
-    rm postgresql-*.jar
+    rm "$GUAC_EXT"/guacamole-auth-jdbc-postgresql.jar "$GUAC_LIB"/postgresql-*.jar
   fi
 fi
 
@@ -300,27 +283,23 @@ if [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]]; then
       CHANGES=true
     else
       echo "Upgrading MSSQL Server extension and connector"
-      rm "$GUAC_EXT"/*sqlserver*.jar
-      cd /config/guacamole/lib
-      rm sqlserver-*.jar
+	  rm "$GUAC_EXT"/*sqlserver*.jar "$GUAC_LIB"/mssql-jdbc-*.jar
       cp "$EXT_STORE"/extensions/guacamole-auth-jdbc/sqlserver/*sqlserver*.jar "$GUAC_EXT"
-      wget -q https://github.com/microsoft/mssql-jdbc/releases/download/v${SCONNECTOR}/mssql-jdbc-${SCONNECTOR}.jre11.jar
-      mv mssql-jdbc-*.jar /config/guacamole/lib
+      wget -q https://github.com/microsoft/mssql-jdbc/releases/download/v${MSSQLCONNECTOR}/mssql-jdbc-${MSSQLCONNECTOR}.jre11.jar
+      mv mssql-jdbc-*.jar ${GUAC_LIB}
       CHANGES=true
     fi
   else
     echo "Copying MSSQL Server extension and connector"
     cp "$EXT_STORE"/extensions/guacamole-auth-jdbc/sqlserver/*sqlserver*.jar "$GUAC_EXT"
-    wget -q https://github.com/microsoft/mssql-jdbc/releases/download/v${SCONNECTOR}/mssql-jdbc-${SCONNECTOR}.jre11.jar
-    mv mssql-jdbc-*.jar /config/guacamole/lib	
+    wget -q https://github.com/microsoft/mssql-jdbc/releases/download/v${MSSQLCONNECTOR}/mssql-jdbc-${MSSQLCONNECTOR}.jre11.jar
+    mv mssql-jdbc-*.jar ${GUAC_LIB}	
     CHANGES=true
   fi
 else
   if [ -f "$GUAC_EXT"/*sqlserver*.jar ]; then
     echo "Removing MSSQL Server extension and connector"
-    rm "$GUAC_EXT"/*sqlserver*.jar
-    cd /config/guacamole/lib
-    rm mssql-jdbc-*.jar	
+    rm "$GUAC_EXT"/*sqlserver*.jar "$GUAC_LIB"/mssql-jdbc-*.jar	
   fi
 fi
 
@@ -574,7 +553,7 @@ else
   fi
 fi
 
-# Session recording player extension will be always present
+# Session recording player extension will be always present, but, will it need updating?
 if [ -f "$GUAC_EXT"/*recording*.jar ]; then
   oldMysqlFiles=( "$GUAC_EXT"/*recording*.jar )
   newMysqlFiles=( "$EXT_STORE"/extensions/guacamole-history-recording-storage/*recording*.jar )
@@ -593,11 +572,11 @@ else
 fi
 
 if [ "$CHANGES" = true ]; then
-  echo "Updating user permissions"
-  chown abc:abc -R /config/guacamole
+  echo "New files or updated, updating user permissions"
+  chown guacd:guacd -R /config/guacamole
   chmod 755 -R /config/guacamole
 else
-  echo "No permissions changes needed"
+  echo "All files uptodate, no permissions changes needed"
 fi
 
 if ( ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] || [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]] )) && [ -f /etc/firstrun/mariadb.sh ]; then

@@ -1,40 +1,32 @@
-### Dockerfile for Apache Guacamole
+# Dockerfile for latest version Apache Guacamole
 
-ARG GUAC_VER=1.6.0
+# New build stage and sets the base image for subsequent instructions
+# Get Guacamole server and use same Alpine version
+FROM guacamole/guacd:latest
 
-########################
-### Get Guacamole Server
-#FROM guacamole/guacd:${GUAC_VER} AS server
-FROM guacamole/guacd:latest AS server
+# Default user for the remainder of the current stage
+USER root
 
-########################
-### Get Guacamole Client
-#FROM guacamole/guacamole:${GUAC_VER} AS client
-FROM guacamole/guacamole:latest AS client
+# Build-time variables
+ARG PREFIX_DIR="/opt/guacamole"
 
-####################################
-### Build Image (Alpine Linux based)
-FROM alpine:3.18.12
-ARG GUAC_VER
-LABEL version=$GUAC_VER
+# Runtime environment
+ENV                                   \
+  HOME=/config                        \
+  GUACAMOLE_HOME=/config/guacamole    \
+  LC_ALL=C.UTF-8                      \
+  LD_LIBRARY_PATH=${PREFIX_DIR}/lib   \
+  GUACD_LOG_LEVEL=info                \
+  TZ=UTC                              \
+  PUID=99                             \
+  PGID=100
 
-ARG PREFIX_DIR=/opt/guacamole
+# Add local files and directories
+ADD image /
 
-### Set correct environment variables.
-ENV HOME=/config
-ENV LC_ALL=C.UTF-8
-ENV LANG=en_US.UTF-8
-ENV LANGUAGE=en_US.UTF-8
-ENV LD_LIBRARY_PATH=${PREFIX_DIR}/lib
-ENV GUACD_LOG_LEVEL=info
-ENV LOGBACK_LEVEL=info
-ENV GUACAMOLE_HOME=/config/guacamole
-
-### Copy build artifacts into this stage
-COPY --from=server ${PREFIX_DIR} ${PREFIX_DIR}
-COPY --from=client ${PREFIX_DIR} ${PREFIX_DIR}
-
-ARG RUNTIME_DEPENDENCIES="  \
+# Install packages, dependencies and clean up in one command to reduce build size
+RUN apk add --no-cache      \
+    bash                    \
     ca-certificates         \
     ghostscript             \
     netcat-openbsd          \
@@ -43,53 +35,37 @@ ARG RUNTIME_DEPENDENCIES="  \
     ttf-dejavu              \
     ttf-liberation          \
     util-linux-login        \
-    openjdk11-jre-headless  \
+    openjdk11-jdk           \
     supervisor              \
     pwgen                   \
     tzdata                  \
     procps                  \
-    logrotate               \
     wget                    \
-    bash                    \
-    tini"
+    curl                    \
+    mariadb                 \
+    mariadb-client          \
+    tini                 && \
+    xargs apk add --no-cache < ${PREFIX_DIR}/DEPENDENCIES
 
-ADD image /
-
-### Install packages and clean up in one command to reduce build size
-
-RUN apk upgrade -U
-
-RUN apk add --no-cache ${RUNTIME_DEPENDENCIES}                                                                                                                                      && \
-    xargs apk add --no-cache < ${PREFIX_DIR}/DEPENDENCIES                                                                                                                           && \
-    adduser -h /config -s /bin/nologin -u 99 -D abc                                                                                                                                 && \
-    adduser -h /opt/tomcat -s /bin/false -D tomcat                                                                                                                                  && \
-    TOMCAT_VERSION=$(wget -qO- https://tomcat.apache.org/download-90.cgi | grep "9\.0\.[0-9]\+</a>" | sed -e 's|.*>\(.*\)<.*|\1|g')                                                 && \
-    wget https://dlcdn.apache.org/tomcat/tomcat-9/v"$TOMCAT_VERSION"/bin/apache-tomcat-"$TOMCAT_VERSION".tar.gz                                                                     && \
-    tar -xf apache-tomcat-"$TOMCAT_VERSION".tar.gz                                                                                                                                  && \
-    mv apache-tomcat-"$TOMCAT_VERSION"/* /opt/tomcat                                                                                                                                && \
-    rmdir apache-tomcat-"$TOMCAT_VERSION"                                                                                                                                           && \
-    rm apache-tomcat-"$TOMCAT_VERSION".tar.gz                                                                                                                                       && \
+# Install Tomcat and set working DIR's
+RUN adduser -h /opt/tomcat -s /bin/false -D tomcat                                                                                                                                  && \
+    TOMCAT_VER=$(wget -qO- https://tomcat.apache.org/download-90.cgi | grep "9\.0\.[0-9]\+</a>" | sed -e 's|.*>\(.*\)<.*|\1|g')                                                     && \
+    curl -SLo /tmp/apache-tomcat.tar.gz "https://dlcdn.apache.org/tomcat/tomcat-9/v${TOMCAT_VER}/bin/apache-tomcat-${TOMCAT_VER}.tar.gz"                                            && \
+    tar xzf /tmp/apache-tomcat.tar.gz --strip-components 1 --directory /opt/tomcat                                                                                                  && \ 	
     find /opt/tomcat -type d -print0 | xargs -0 chmod 700                                                                                                                           && \
     chmod +x /opt/tomcat/bin/*.sh                                                                                                                                                   && \
-    mkdir -p /var/lib/tomcat/webapps /var/log/tomcat                                                                                                                                && \
-    ln -s ${PREFIX_DIR}/webapp/guacamole.war /var/lib/tomcat/webapps/ROOT.war                                                                                                       && \
-    chmod +x /etc/firstrun/*.sh                                                                                                                                                     && \
-    mkdir -p /config/guacamole /config/log/tomcat /var/lib/tomcat/temp /var/run/tomcat                                                                                              && \
+    mkdir -p /var/lib/tomcat/webapps /var/log/tomcat /var/lib/tomcat/temp /var/run/tomcat                                                                                           && \
     ln -s /opt/tomcat/conf /var/lib/tomcat/conf                                                                                                                                     && \
     ln -s /config/log/tomcat /var/lib/tomcat/logs                                                                                                                                   && \
-    sed -i '/<\/Host>/i \        <Valve className=\"org.apache.catalina.valves.RemoteIpValve\"\n               remoteIpHeader=\"x-forwarded-for\" />' /opt/tomcat/conf/server.xml
+    sed -i '/<\/Host>/i \        <Valve className=\"org.apache.catalina.valves.RemoteIpValve\"\n               remoteIpHeader=\"x-forwarded-for\" />' /opt/tomcat/conf/server.xml   && \
+    chmod -R +x /etc/firstrun/*.sh
 
-### Add MariaDB for possible internal use
-RUN apk add mariadb mariadb-client
-RUN chmod +x /etc/firstrun/mariadb.sh
+# Copy build artifacts into this stage
+COPY --from=guacamole/guacamole:latest ${PREFIX_DIR}/extensions ${PREFIX_DIR}/extensions
+COPY --from=guacamole/guacamole:latest ${PREFIX_DIR}/webapp/guacamole.war /var/lib/tomcat/webapps/ROOT.war
 
 EXPOSE 8080
 
 VOLUME ["/config"]
 
-CMD [ "/etc/firstrun/firstrun.sh" ]
-
-### END
-### To make this a persistent guacamole container, you must map /config of this container
-### to a folder on your host machine.
-###
+ENTRYPOINT [ "/etc/firstrun/firstrun.sh" ]
