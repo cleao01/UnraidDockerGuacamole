@@ -50,7 +50,10 @@ Container Path: /config: AppData Config Path
 Container Path: /var/lib/guacamole/recordings
  
 Internal port: 8080
+
+
 ..................
+
 
 UPDATE HYSTORY:
 
