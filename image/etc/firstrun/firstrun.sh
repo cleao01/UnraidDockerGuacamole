@@ -5,8 +5,8 @@ GUAC_EXT="/config/guacamole/extensions"
 GUAC_LIB="/config/guacamole/lib"
 TOMCAT_LOG="/config/log/tomcat"
 CHANGES=false
-MYSQLCONNECTOR="9.5.0"     #  https://dev.mysql.com/downloads/connector/j/
-POSTGRCONNECTOR="42.7.8"    #  https://jdbc.postgresql.org/download
+MYSQLCONNECTOR="9.6.0"     #  https://dev.mysql.com/downloads/connector/j/
+POSTGRCONNECTOR="42.7.10"    #  https://jdbc.postgresql.org/download
 MSSQLCONNECTOR="13.2.1"    #  https://learn.microsoft.com/en-us/sql/connect/jdbc/download-microsoft-jdbc-driver-for-sql-server?view=sql-server-ver17
 
 # User to run MariaDB

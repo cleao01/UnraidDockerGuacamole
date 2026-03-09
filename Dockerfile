@@ -35,7 +35,7 @@ RUN apk add --no-cache      \
     ttf-dejavu              \
     ttf-liberation          \
     util-linux-login        \
-    openjdk11-jdk           \
+    openjdk17-jdk           \
     supervisor              \
     pwgen                   \
     tzdata                  \

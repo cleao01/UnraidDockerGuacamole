@@ -2,7 +2,7 @@
 
 REPOSITORY="cleao"
 
-VERSION="$1"
+VERSION="beta"
 
 docker build --rm -t "$REPOSITORY"/guacamole:"$VERSION" .
 

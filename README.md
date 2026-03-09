@@ -50,3 +50,12 @@ Container Path: /config: AppData Config Path
 Container Path: /var/lib/guacamole/recordings
  
 Internal port: 8080
+..................
+
+UPDATE HYSTORY:
+
+Latest version (1.0.4):
+- Last cliente and server Docker from apache  (9/3/2026)
+- openjdk11-jdk -> openjdk17-jdk
+- Mysql connector 9.5.0 -> 9.6.0
+- Postgresql connector 42.7.8 -> 42.7.10
