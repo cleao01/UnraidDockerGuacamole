@@ -1,7 +1,7 @@
 # Dockerfile for latest version Apache Guacamole
 
 # New build stage and sets the base image for subsequent instructions
-# Get Guacamole server and use same Alpine version
+# Get Guacamole server image and use Alpine version from it
 FROM guacamole/guacd:latest
 
 # Default user for the remainder of the current stage

@@ -25,6 +25,7 @@ Apache Guacamole copyright The Apache Software Foundation, Licenced under the Ap
 Environment variables:
 ---------------------
   EXTENSION_PRIORITY: Comma-separated list of external database server (mysql, sqlserver or postgresql) and authentication providers (ldap, duo, totp, cas, openid, saml, ssl, json, header, quickconnect) that should be acessed in specific order. Use internal (MariaDB) if any external database chosen,
+                      Don't use * (asterisk), every needed extensions must be explicity described by the execution order 
   DATABASE_HOSTNAME: External database server name or IP adress:port,
   DATABASE_NAME: External database name,
   DATABASE_USERNAME: External database user name,
@@ -45,7 +46,8 @@ Environment variables:
   SSL_AUTH_URI: SSL auth uri,
   SSL_AUTH_PRIMARY_URI: SSL auth primary uri,
   JSON_SECRET_KEY: JSON secret key,
- 
+
+Additional optional properties can be added inside docker /config/guacamole/guacamole.properties  
 Container Path: /config: AppData Config Path
 Container Path: /var/lib/guacamole/recordings
  
@@ -57,8 +59,19 @@ Internal port: 8080
 
 UPDATE HYSTORY:
 
-Latest version (1.0.4):
-- Last cliente and server Docker from apache  (9/3/2026)
+Latest version (1.0.5):
+- New variable in guacamole.properties:  openid-username-claim-type: preferred_username
+  The claim type within any valid JWT that contains the authenticated user’s username. By default, the “email” claim type is used
+- Minor code refinements  
+- Apache Tomcat 9.0.118 (2026-05-10)
+- Mai/2026 client and server official docker images
+- Mysql connector 9.6.0 -> 9.7.0
+- Postgresql connector 42.7.10 -> 42.7.11
+- MSSQL connector 13.2.1 -> 13.4.0
+
+
+(1.0.4):
+- Last client and server Docker from apache  (9/3/2026)
 - openjdk11-jdk -> openjdk17-jdk
 - Mysql connector 9.5.0 -> 9.6.0
 - Postgresql connector 42.7.8 -> 42.7.10
