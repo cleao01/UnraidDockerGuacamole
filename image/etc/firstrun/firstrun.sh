@@ -61,6 +61,8 @@ mkdir -p /var/lib/guacamole/recordings
 chown guacd:guacd /var/lib/guacamole/recordings
 chmod 2750 /var/lib/guacamole/recordings
 
+echo "Additional optional properties can be added inside docker: /config/guacamole/guacamole.properties"
+
 # Save guacamole.properties required configuration from environment variables
 # Use MariaDB internal if any external database server is specifyed
 if ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] || [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]]); then
