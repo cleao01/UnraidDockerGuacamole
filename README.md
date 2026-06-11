@@ -1,5 +1,5 @@
 Apache Guacamole is a clientless remote desktop gateway. It supports standard protocols like VNC, RDP, SSH, and Telnet.
-This docker primarily has a MariaDB (MySQL) database built-in for authentication and configuration. It also has support for external database server (mysql, sqlserver or postgresql) and authentication providers: ldap, duo, totp, cas, openid, saml, ssl, json, header, quickconnect.
+This docker primarily has a MariaDB database built-in for authentication and configuration. It also has support for external database server (mysql/mariadb, sqlserver or postgresql) and authentication providers: ldap, duo, totp, cas, openid, saml, ssl, json, header, quickconnect.
 Thanks to HTML5, once Guacamole is installed on a server, all you need to access your desktops is a web browser.
 
 For general usage of Apache Guacamole the full manual is located here: https://guacamole.apache.org/doc/gug/
@@ -24,8 +24,8 @@ Apache Guacamole copyright The Apache Software Foundation, Licenced under the Ap
 
 Environment variables:
 ---------------------
-  EXTENSION_PRIORITY: Comma-separated list of external database server (mysql, sqlserver or postgresql) and authentication providers (ldap, duo, totp, cas, openid, saml, ssl, json, header, quickconnect) that should be acessed in specific order. Use internal (MariaDB) if any external database chosen,
-                      Don't use * (asterisk), every needed extensions must be explicity described by the execution order 
+  EXTENSION_PRIORITY: Comma-separated list of external database server (mysql, sqlserver or postgresql) (mysql if use Mariadb) and authentication providers (ldap, duo, totp, cas, openid, saml, ssl, json, header, quickconnect) that should be acessed in the specific order. Use internal (MariaDB) if no external database chosen or the next four database parameters/variables are not specifyed (database validation),
+                      Don't use * (asterisk), every needed extensions must be explicity described by the execution order (to use any authentication provider with internal Mariadb, specify 'mysql' with no database validation parameters/variables)
   DATABASE_HOSTNAME: External database server name or IP adress:port,
   DATABASE_NAME: External database name,
   DATABASE_USERNAME: External database user name,
@@ -59,7 +59,11 @@ Internal port: 8080
 
 UPDATE HYSTORY:
 
-Latest version (1.0.5):
+Latest version (1.0.6):
+- Not specifying the four database validation variables/parameters, the internal Mariadb is used independently of being specified or not in the EXTENSION_PRIORITY parameter/variable
+- Minor code refinements
+
+(1.0.5):
 - New variable in guacamole.properties:  openid-username-claim-type: preferred_username
   The claim type within any valid JWT that contains the authenticated user’s username. By default, the “email” claim type is used
 - Minor code refinements  

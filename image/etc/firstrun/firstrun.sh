@@ -46,6 +46,16 @@ SSLAUTHPRIMARYURI=${SSL_AUTH_PRIMARY_URI}
 
 JSONSECRETKEY=${JSON_SECRET_KEY}
 
+# All 4 database parameters are specified ?
+if [[ -z "$DATABASEHOSTNAME" || -z "$DATABASEPORT" || -z "$DATABASENAME" || -z "$DATABASEUSERNAME" || -z "$DATABASEPASSWORD" ]]; then
+  MISSINGDATABASEVARS=true
+fi
+
+# external database specifyed but missing validation parameters/variables
+if ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] || [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]]) && ([[ "$MISSINGDATABASEVARS"  == true ]]); then
+  echo "External database choosen but database parameters/variables missing. Will use internal MariaDB"
+fi
+
 # 1st. run or new mount point in host
 if [ ! -f /config/guacamole/guacamole.properties ]; then
   echo "1st. run or new mount point in host"
@@ -56,7 +66,7 @@ if [ ! -f /config/guacamole/guacamole.properties ]; then
 fi
 
 # Preparing directory for recording storage - https://guacamole.apache.org/doc/gug/recording-playback.html#preparing-a-directory-for-recording-storage
-echo "Use mount point (path:/var/lib/guacamole/recordings) to access session recordings outside docker"
+echo "Use mount point to access session recordings inside docker: /var/lib/guacamole/recordings"
 mkdir -p /var/lib/guacamole/recordings  
 chown guacd:guacd /var/lib/guacamole/recordings
 chmod 2750 /var/lib/guacamole/recordings
@@ -64,8 +74,10 @@ chmod 2750 /var/lib/guacamole/recordings
 echo "Additional optional properties can be added inside docker: /config/guacamole/guacamole.properties"
 
 # Save guacamole.properties required configuration from environment variables
-# Use MariaDB internal if any external database server is specifyed
-if ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] || [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]]); then
+# EXTENSIONPRIORITY variable like specified in parameters
+sed -i '/extension-priority:/c\extension-priority: '"$EXTENSIONPRIORITY"'' /config/guacamole/guacamole.properties
+# Use MariaDB internal if no external database server or the 4 database parameters are not specifyed
+if (! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] || [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]])) || ([[ "$MISSINGDATABASEVARS"  == true ]]) ; then
   # Check if database server type as changed from external or is 1st. run
   if [ ! -f /config/databases/guacamole/guacamole_user.ibd ]; then
     echo "Creating database folders"
@@ -84,18 +96,12 @@ if ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlse
       PW=$(cat /config/guacamole/guacamole.properties | grep -m 1 "mysql-password:\s" | sed 's/mysql-password:\s//')  
 	fi
   fi
-  if [ ! -z "$EXTENSIONPRIORITY" ]; then
-    sed -i '/extension-priority:/c\extension-priority: '"$EXTENSIONPRIORITY"',mysql' /config/guacamole/guacamole.properties
-  else
-    sed -i '/extension-priority:/c\#extension-priority:' /config/guacamole/guacamole.properties    
-  fi
   sed -i '/mysql-hostname:/c\mysql-hostname: 127.0.0.1' /config/guacamole/guacamole.properties
   sed -i '/mysql-port:/c\mysql-port: 3306' /config/guacamole/guacamole.properties
   sed -i '/mysql-database/c\mysql-database: guacamole' /config/guacamole/guacamole.properties
   sed -i '/mysql-username:/c\mysql-username: guacamole' /config/guacamole/guacamole.properties
   sed -i '/mysql-password:/c\mysql-password: '$PW'' /config/guacamole/guacamole.properties
 else  #  External database
-  sed -i '/extension-priority:/c\extension-priority: '"$EXTENSIONPRIORITY"'' /config/guacamole/guacamole.properties  
   if [[ $EXTENSIONPRIORITY =~ "mysql" ]]; then
     # External MySQL/MariaDB database server
     sed -i '/mysql-hostname:/c\mysql-hostname: '$DATABASEHOSTNAME'' /config/guacamole/guacamole.properties
@@ -109,35 +115,35 @@ else  #  External database
     sed -i '/mysql-database:/c\#mysql-database:' /config/guacamole/guacamole.properties
     sed -i '/mysql-username:/c\#mysql-username:' /config/guacamole/guacamole.properties
     sed -i '/mysql-password:/c\#mysql-password:' /config/guacamole/guacamole.properties
-  fi	
-  if [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]]; then
-    # External MSSQLServer database server
-    sed -i '/sqlserver-hostname:/c\sqlserver-hostname: '$DATABASEHOSTNAME'' /config/guacamole/guacamole.properties
-    sed -i '/sqlserver-port:/c\sqlserver-port: '$DATABASEPORT'' /config/guacamole/guacamole.properties
-    sed -i '/sqlserver-database:/c\sqlserver-database: '$DATABASENAME'' /config/guacamole/guacamole.properties
-    sed -i '/sqlserver-username:/c\sqlserver-username: '$DATABASEUSERNAME'' /config/guacamole/guacamole.properties
-    sed -i '/sqlserver-password:/c\sqlserver-password: '$DATABASEPASSWORD'' /config/guacamole/guacamole.properties  
-  else
-    sed -i '/sqlserver-hostname:/c\#sqlserver-hostname:' /config/guacamole/guacamole.properties
-    sed -i '/sqlserver-port:/c\#sqlserver-port:' /config/guacamole/guacamole.properties
-    sed -i '/sqlserver-database:/c\#sqlserver-database:' /config/guacamole/guacamole.properties
-    sed -i '/sqlserver-username:/c\#sqlserver-username:' /config/guacamole/guacamole.properties
-    sed -i '/sqlserver-password:/c\#sqlserver-password:' /config/guacamole/guacamole.properties
   fi
-  if [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]]; then
-    # External Postgresql database server
-    sed -i '/postgresql-hostname:/c\postgresql-hostname: '$DATABASEHOSTNAME'' /config/guacamole/guacamole.properties
-    sed -i '/postgresql-port:/c\postgresql-port: '$DATABASEPORT'' /config/guacamole/guacamole.properties
-    sed -i '/postgresql-database:/c\postgresql-database: '$DATABASENAME'' /config/guacamole/guacamole.properties
-    sed -i '/postgresql-username:/c\postgresql-username: '$DATABASEUSERNAME'' /config/guacamole/guacamole.properties
-    sed -i '/postgresql-password:/c\postgresql-password: '$DATABASEPASSWORD'' /config/guacamole/guacamole.properties
-  else
-    sed -i '/postgresql-hostname:/c\#postgresql-hostname:' /config/guacamole/guacamole.properties
-    sed -i '/postgresql-port:/c\#postgresql-port:' /config/guacamole/guacamole.properties
-    sed -i '/postgresql-database:/c\#postgresql-database:' /config/guacamole/guacamole.properties
-    sed -i '/postgresql-username:/c\#postgresql-username:' /config/guacamole/guacamole.properties
-    sed -i '/postgresql-password:/c\#postgresql-password:' /config/guacamole/guacamole.properties
-  fi
+fi
+if ([[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]]) && ([[ ! "$MISSINGDATABASEVARS"  == true ]]); then  # Use MariaDB internal if all the 4 database parameters are not specified
+  # External MSSQLServer database server
+  sed -i '/sqlserver-hostname:/c\sqlserver-hostname: '$DATABASEHOSTNAME'' /config/guacamole/guacamole.properties
+  sed -i '/sqlserver-port:/c\sqlserver-port: '$DATABASEPORT'' /config/guacamole/guacamole.properties
+  sed -i '/sqlserver-database:/c\sqlserver-database: '$DATABASENAME'' /config/guacamole/guacamole.properties
+  sed -i '/sqlserver-username:/c\sqlserver-username: '$DATABASEUSERNAME'' /config/guacamole/guacamole.properties
+  sed -i '/sqlserver-password:/c\sqlserver-password: '$DATABASEPASSWORD'' /config/guacamole/guacamole.properties  
+else
+  sed -i '/sqlserver-hostname:/c\#sqlserver-hostname:' /config/guacamole/guacamole.properties
+  sed -i '/sqlserver-port:/c\#sqlserver-port:' /config/guacamole/guacamole.properties
+  sed -i '/sqlserver-database:/c\#sqlserver-database:' /config/guacamole/guacamole.properties
+  sed -i '/sqlserver-username:/c\#sqlserver-username:' /config/guacamole/guacamole.properties
+  sed -i '/sqlserver-password:/c\#sqlserver-password:' /config/guacamole/guacamole.properties
+fi
+if ([[ "$EXTENSIONPRIORITY" =~ "postgresql" ]]) && ([[ ! "$MISSINGDATABASEVARS"  == true ]]); then  # # Use MariaDB internal if all the 4 database parameters are not specified
+  # External Postgresql database server
+  sed -i '/postgresql-hostname:/c\postgresql-hostname: '$DATABASEHOSTNAME'' /config/guacamole/guacamole.properties
+  sed -i '/postgresql-port:/c\postgresql-port: '$DATABASEPORT'' /config/guacamole/guacamole.properties
+  sed -i '/postgresql-database:/c\postgresql-database: '$DATABASENAME'' /config/guacamole/guacamole.properties
+  sed -i '/postgresql-username:/c\postgresql-username: '$DATABASEUSERNAME'' /config/guacamole/guacamole.properties
+  sed -i '/postgresql-password:/c\postgresql-password: '$DATABASEPASSWORD'' /config/guacamole/guacamole.properties
+else
+  sed -i '/postgresql-hostname:/c\#postgresql-hostname:' /config/guacamole/guacamole.properties
+  sed -i '/postgresql-port:/c\#postgresql-port:' /config/guacamole/guacamole.properties
+  sed -i '/postgresql-database:/c\#postgresql-database:' /config/guacamole/guacamole.properties
+  sed -i '/postgresql-username:/c\#postgresql-username:' /config/guacamole/guacamole.properties
+  sed -i '/postgresql-password:/c\#postgresql-password:' /config/guacamole/guacamole.properties
 fi
 if [[ "$EXTENSIONPRIORITY" =~ "ldap" ]]; then
   # External LDAP authentication
@@ -209,7 +215,7 @@ fi
 
 # Install/uninstall needed extensions and connectors
 # MYSQL/MARIADB
-if ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]]) || ( ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] || [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]] )); then
+if (([[ "$EXTENSIONPRIORITY" =~ "mysql" ]]) || ( ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] || [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]] ))) || ([[ "$MISSINGDATABASEVARS"  == true ]]); then
   # Check if MySQL extension file exists. Copy or upgrade if necessary.
   if [ -f "$GUAC_EXT"/*jdbc-mysql*.jar ]; then
     oldMysqlFiles=( "$GUAC_EXT"/*jdbc-mysql*.jar )
@@ -244,7 +250,7 @@ else
 fi
 
 # POSTGRESQL
-if [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]] ; then
+if ([[ "$EXTENSIONPRIORITY" =~ "postgresql" ]]) && ([[ ! "$MISSINGDATABASEVARS"  == true ]]); then  # Use MariaDB internal if all the the 4 database parameters are not specified
   # Check if postgres SQL extension file exists. Copy or upgrade if necessary.
   if [ -f "$GUAC_EXT"/guacamole-auth-jdbc-postgresql.jar ]; then
     oldMysqlFiles=( "$GUAC_EXT"/guacamole-auth-jdbc-postgresql.jar )
@@ -276,7 +282,7 @@ else
 fi
 
 # MSSQL
-if [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]]; then
+if [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] && ([[ ! "$MISSINGDATABASEVARS"  == true ]]); then  # Use MariaDB internal if all the 4 database parameters are not specified
   if [ -f "$GUAC_EXT"/*sqlserver*.jar ]; then
     oldSqlServerFiles=( "$GUAC_EXT"/*sqlserver*.jar )
     newSqlServerFiles=( "$EXT_STORE"/extensions/guacamole-auth-jdbc/sqlserver/*sqlserver*.jar )
@@ -311,21 +317,21 @@ if [[ "$EXTENSIONPRIORITY" =~ "ldap" ]]; then
     oldLDAPFiles=( "$GUAC_EXT"/*ldap*.jar )
     newLDAPFiles=( "$EXT_STORE"/extensions/guacamole-auth-ldap/*ldap*.jar )
     if diff ${oldLDAPFiles[0]} ${newLDAPFiles[0]} >/dev/null ; then
-    	echo "Using existing LDAP extension."
+    	echo "Using existing LDAP extension"
     else
-    	echo "Upgrading LDAP extension."
+    	echo "Upgrading LDAP extension"
     	rm "$GUAC_EXT"/*ldap*.jar
     	cp "$EXT_STORE"/extensions/guacamole-auth-ldap/*ldap*.jar "$GUAC_EXT"
       CHANGES=true
     fi
   else
-    echo "Copying LDAP extension."
+    echo "Copying LDAP extension"
     cp "$EXT_STORE"/extensions/guacamole-auth-ldap/*ldap*.jar "$GUAC_EXT"
     CHANGES=true
   fi
 else
   if [ -f "$GUAC_EXT"/*ldap*.jar ]; then
-    echo "Removing LDAP extension."
+    echo "Removing LDAP extension"
     rm "$GUAC_EXT"/*ldap*.jar
   fi
 fi
@@ -336,15 +342,15 @@ if [[ "$EXTENSIONPRIORITY" =~ "duo" ]]; then
     oldDuoFiles=( "$GUAC_EXT"/*duo*.jar )
     newDuoFiles=( "$EXT_STORE"/extensions/guacamole-auth-duo/*duo*.jar )
     if diff ${oldDuoFiles[0]} ${newDuoFiles[0]} >/dev/null ; then
-      echo "Using existing Duo extension."
+      echo "Using existing Duo extension"
     else
-      echo "Upgrading Duo extension."
+      echo "Upgrading Duo extension"
       rm "$GUAC_EXT"/*duo*.jar
       cp "$EXT_STORE"/extensions/guacamole-auth-duo/*duo*.jar "$GUAC_EXT"
       CHANGES=true
     fi
   else
-    echo "Copying Duo extension."
+    echo "Copying Duo extension"
     cp "$EXT_STORE"/extensions/guacamole-auth-duo/*duo*.jar "$GUAC_EXT"
     CHANGES=true
   fi
@@ -361,21 +367,21 @@ if [[ "$EXTENSIONPRIORITY" =~ "totp" ]]; then
     oldTotpFiles=( "$GUAC_EXT"/*totp*.jar )
     newTotpFiles=( "$EXT_STORE"/extensions/guacamole-auth-totp/*totp*.jar )
     if diff ${oldTotpFiles[0]} ${newTotpFiles[0]} >/dev/null ; then
-      echo "Using existing TOTP extension."
+      echo "Using existing TOTP extension"
     else
-      echo "Upgrading TOTP extension."
+      echo "Upgrading TOTP extension"
       rm "$GUAC_EXT"/*totp*.jar
       cp "$EXT_STORE"/extensions/guacamole-auth-totp/*totp*.jar "$GUAC_EXT"
       CHANGES=true
     fi
   else
-    echo "Copying TOTP extension."
+    echo "Copying TOTP extension"
     cp "$EXT_STORE"/extensions/guacamole-auth-totp/*totp*.jar "$GUAC_EXT"
     CHANGES=true
   fi
 else
   if [ -f "$GUAC_EXT"/*totp*.jar ]; then
-    echo "Removing TOTP extension."
+    echo "Removing TOTP extension"
     rm "$GUAC_EXT"/*totp*.jar
   fi
 fi
@@ -386,21 +392,21 @@ if [[ "$EXTENSIONPRIORITY" =~ "cas" ]]; then
     oldCasFiles=( "$GUAC_EXT"/*cas*.jar )
     newCasFiles=( "$EXT_STORE"/extensions/guacamole-auth-sso/cas/*cas*.jar )
     if diff ${oldCasFiles[0]} ${newCasFiles[0]} >/dev/null ; then
-      echo "Using existing CAS extension."
+      echo "Using existing CAS extension"
     else
-      echo "Upgrading CAS extension."
+      echo "Upgrading CAS extension"
       rm "$GUAC_EXT"/*cas*.jar
       cp "$EXT_STORE"/extensions/guacamole-auth-sso/cas/*cas*.jar "$GUAC_EXT"
       CHANGES=true
     fi
   else
-    echo "Copying CAS extension."
+    echo "Copying CAS extension"
     cp "$EXT_STORE"/extensions/guacamole-auth-sso/cas/*cas*.jar "$GUAC_EXT"
     CHANGES=true
   fi
 else
   if [ -f "$GUAC_EXT"/*cas*.jar ]; then
-    echo "Removing CAS extension."
+    echo "Removing CAS extension"
     rm "$GUAC_EXT"/*cas*.jar
   fi
 fi
@@ -411,7 +417,7 @@ if [[ "$EXTENSIONPRIORITY" =~ "openid" ]]; then
     oldOpenidFiles=( "$GUAC_EXT"/*openid*.jar )
     newOpenidFiles=( "$EXT_STORE"/extensions/guacamole-auth-sso/openid/*openid*.jar )
     if diff ${oldOpenidFiles[0]} ${newOpenidFiles[0]} >/dev/null ; then
-      echo "Using existing OpenID extension."
+      echo "Using existing OpenID extension"
     else
       echo "Upgrading OpenID extension."
       rm "$GUAC_EXT"/*openid*.jar
@@ -419,13 +425,13 @@ if [[ "$EXTENSIONPRIORITY" =~ "openid" ]]; then
       CHANGES=true
     fi
   else
-    echo "Copying OpenID extension."
+    echo "Copying OpenID extension"
     find ${EXT_STORE}/extensions/guacamole-auth-sso/openid/ -name "*.jar" | awk -F/ '{print $NF}' | xargs -I '{}' cp "${EXT_STORE}/extensions/guacamole-auth-sso/openid/{}" "${GUAC_EXT}/1-{}"
     CHANGES=true
   fi
 else
   if [ -f "$GUAC_EXT"/*openid*.jar ]; then
-    echo "Removing OpenID extension."
+    echo "Removing OpenID extension"
     rm "$GUAC_EXT"/*openid*.jar
   fi
 fi
@@ -436,21 +442,21 @@ if [[ "$EXTENSIONPRIORITY" =~ "saml" ]]; then
     oldQCFiles=( "$GUAC_EXT"/*saml*.jar )
     newQCFiles=( "$EXT_STORE"/extensions/guacamole-auth-sso/saml/*saml*.jar )
     if diff ${oldQCFiles[0]} ${newQCFiles[0]} >/dev/null ; then
-      echo "Using existing SAML extension."
+      echo "Using existing SAML extension"
     else
-      echo "Upgrading SAML extension."
+      echo "Upgrading SAML extension"
       rm "$GUAC_EXT"/*saml*.jar
       cp "$EXT_STORE"/extensions/guacamole-auth-sso/saml/*saml*.jar "$GUAC_EXT"
       CHANGES=true
     fi
   else
-    echo "Copying SAML extension."
+    echo "Copying SAML extension"
     cp "$EXT_STORE"/extensions/guacamole-auth-sso/saml/*saml*.jar "$GUAC_EXT"
     CHANGES=true
   fi
 else
   if [ -f "$GUAC_EXT"/*saml*.jar ]; then
-    echo "Removing SAML extension."
+    echo "Removing SAML extension"
     rm "$GUAC_EXT"/*saml*.jar
   fi
 fi
@@ -461,21 +467,21 @@ if [[ "$EXTENSIONPRIORITY" =~ "ssl" ]]; then
     oldQCFiles=( "$GUAC_EXT"/*ssl*.jar )
     newQCFiles=( "$EXT_STORE"/extensions/guacamole-auth-sso/ssl/*ssl*.jar )
     if diff ${oldQCFiles[0]} ${newQCFiles[0]} >/dev/null ; then
-      echo "Using existing SSL extension."
+      echo "Using existing SSL extension"
     else
-      echo "Upgrading SSL extension."
+      echo "Upgrading SSL extension"
       rm "$GUAC_EXT"/*ssl*.jar
       cp "$EXT_STORE"/extensions/guacamole-auth-sso/ssl/*ssl*.jar "$GUAC_EXT"
       CHANGES=true
     fi
   else
-    echo "Copying SSL extension."
+    echo "Copying SSL extension"
     cp "$EXT_STORE"/extensions/guacamole-auth-sso/ssl/*ssl*.jar "$GUAC_EXT"
     CHANGES=true
   fi
 else
   if [ -f "$GUAC_EXT"/*ssl*.jar ]; then
-    echo "Removing SSL extension."
+    echo "Removing SSL extension"
     rm "$GUAC_EXT"/*ssl*.jar
   fi
 fi
@@ -486,21 +492,21 @@ if [[ "$EXTENSIONPRIORITY" =~ "json" ]]; then
     oldQCFiles=( "$GUAC_EXT"/*json*.jar )
     newQCFiles=( "$EXT_STORE"/extensions/guacamole-auth-json/*json*.jar )
     if diff ${oldQCFiles[0]} ${newQCFiles[0]} >/dev/null ; then
-      echo "Using existing json extension."
+      echo "Using existing json extension"
     else
-      echo "Upgrading json extension."
+      echo "Upgrading json extension"
       rm "$GUAC_EXT"/*json*.jar
       cp "$EXT_STORE"/extensions/guacamole-auth-json/*json*.jar "$GUAC_EXT"
       CHANGES=true
     fi
   else
-    echo "Copying json extension."
+    echo "Copying json extension"
     cp "$EXT_STORE"/extensions/guacamole-auth-json/*json*.jar "$GUAC_EXT"
     CHANGES=true
   fi
 else
   if [ -f "$GUAC_EXT"/*json*.jar ]; then
-    echo "Removing json extension."
+    echo "Removing json extension"
     rm "$GUAC_EXT"/*json*.jar
   fi
 fi
@@ -513,19 +519,19 @@ if [[ "$EXTENSIONPRIORITY" =~ "header" ]]; then
     if diff ${oldQCFiles[0]} ${newQCFiles[0]} >/dev/null ; then
       echo "Using existing Header extension."
     else
-      echo "Upgrading Header extension."
+      echo "Upgrading Header extension"
       rm "$GUAC_EXT"/*header*.jar
       cp "$EXT_STORE"/extensions/guacamole-auth-header/*header*.jar "$GUAC_EXT"
       CHANGES=true
     fi
   else
-    echo "Copying Header extension."
+    echo "Copying Header extension"
     cp "$EXT_STORE"/extensions/guacamole-auth-header/*header*.jar "$GUAC_EXT"
     CHANGES=true
   fi
 else
   if [ -f "$GUAC_EXT"/*header*.jar ]; then
-    echo "Removing Header extension."
+    echo "Removing Header extension"
     rm "$GUAC_EXT"/*header*.jar
   fi
 fi
@@ -536,21 +542,21 @@ if [[ "$EXTENSIONPRIORITY" =~ "quickconnect" ]]; then
     oldQCFiles=( "$GUAC_EXT"/*quickconnect*.jar )
     newQCFiles=( "$EXT_STORE"/extensions/guacamole-auth-quickconnect/*quickconnect*.jar )
     if diff ${oldQCFiles[0]} ${newQCFiles[0]} >/dev/null ; then
-      echo "Using existing Quick Connect extension."
+      echo "Using existing Quick Connect extension"
     else
-      echo "Upgrading Quick Connect extension."
+      echo "Upgrading Quick Connect extension"
       rm "$GUAC_EXT"/*quickconnect*.jar
       cp "$EXT_STORE"/extensions/guacamole-auth-quickconnect/*quickconnect*.jar "$GUAC_EXT"
       CHANGES=true
     fi
   else
-    echo "Copying Quick Connect extension."
+    echo "Copying Quick Connect extension"
     cp "$EXT_STORE"/extensions/guacamole-auth-quickconnect/*quickconnect*.jar "$GUAC_EXT"
     CHANGES=true
   fi
 else
   if [ -f "$GUAC_EXT"/*quickconnect*.jar ]; then
-    echo "Removing Quick Connect extension."
+    echo "Removing Quick Connect extension"
     rm "$GUAC_EXT"/*quickconnect*.jar
   fi
 fi
@@ -581,11 +587,12 @@ else
   echo "All files uptodate, no permissions changes needed"
 fi
 
-if ( ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] || [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]] )) && [ -f /etc/firstrun/mariadb.sh ]; then
+if (( ! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqlserver" ]] || [[ "$EXTENSIONPRIORITY" =~ "postgresql" ]] )) || ([[ "$MISSINGDATABASEVARS"  == true ]])) && [ -f /etc/firstrun/mariadb.sh ]; then
   # Use internal database (MariaDB)
   /etc/firstrun/mariadb.sh
   exec /sbin/tini -s -- /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord-mariadb.conf
 else
   # Use external database server, internal (MariaDB) is stopped to free resources
+  echo "Connecting to external database server..."
   exec /sbin/tini -s -- /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf
 fi
