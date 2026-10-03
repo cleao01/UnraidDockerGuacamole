@@ -59,7 +59,7 @@ RUN adduser -h /opt/tomcat -s /bin/false -D tomcat                              
     ln -s /config/log/tomcat /var/lib/tomcat/logs                                                                                                                                   && \
     sed -i '/<\/Host>/i \        <Valve className=\"org.apache.catalina.valves.RemoteIpValve\"\n               remoteIpHeader=\"x-forwarded-for\" />' /opt/tomcat/conf/server.xml   && \
     chmod -R +x /etc/firstrun/*.sh
-
+	
 # Copy build artifacts into this stage
 COPY --from=guacamole/guacamole:latest ${PREFIX_DIR}/extensions ${PREFIX_DIR}/extensions
 COPY --from=guacamole/guacamole:latest ${PREFIX_DIR}/webapp/guacamole.war /var/lib/tomcat/webapps/ROOT.war

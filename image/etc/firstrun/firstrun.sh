@@ -5,9 +5,9 @@ GUAC_EXT="/config/guacamole/extensions"
 GUAC_LIB="/config/guacamole/lib"
 TOMCAT_LOG="/config/log/tomcat"
 CHANGES=false
-MYSQLCONNECTOR="9.7.0"     #  https://dev.mysql.com/downloads/connector/j/
-POSTGRCONNECTOR="42.7.11"    #  https://jdbc.postgresql.org/download
-MSSQLCONNECTOR="13.2.1"    #  https://learn.microsoft.com/en-us/sql/connect/jdbc/download-microsoft-jdbc-driver-for-sql-server?view=sql-server-ver17
+MYSQLCONNECTOR="26.7.0"     #  https://dev.mysql.com/downloads/connector/j/    9.7.0
+POSTGRCONNECTOR="42.7.13"    #  https://jdbc.postgresql.org/download           42.7.11
+MSSQLCONNECTOR="13.6.0"    #  https://learn.microsoft.com/en-us/sql/connect/jdbc/download-microsoft-jdbc-driver-for-sql-server?view=sql-server-ver17    13.2.1
 
 # User to run MariaDB
 groupmod -o -g "$PGID" guacd
@@ -87,7 +87,7 @@ if (! ([[ "$EXTENSIONPRIORITY" =~ "mysql" ]] || [[ "$EXTENSIONPRIORITY" =~ "sqls
 	#  Keep last internal password just for backup because it migth be lost with future changes in file guacamole.properties
 	echo "mysql-password: $PW" > /config/databases/guacamole.pass
   else
-    echo "Re-use the internal MariaDB database that already exists!"
+    echo "Using existing MariaDB internal database"
 	if [ -f /config/databases/guacamole.pass ]; then
       #  Last internal password used was kept, recover it
       PW=$(cat /config/databases/guacamole.pass | grep -m 1 "mysql-password:\s" | sed 's/mysql-password:\s//')
